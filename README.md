@@ -100,4 +100,17 @@ Copy `.env.example` to `.env` for local development. Key settings:
     freeze the server.
   - `GET /api/v1/benchmarks/system-info` — runtime context for result
     normalization.
-- Next: dashboard wiring (benchmark runner + result charts).
+- Dashboard live (Step 3): a dark, developer-focused SPA at
+  `apps/dashboard` wired to the API via `VITE_API_BASE_URL` (defaults to
+  `/api`):
+  - Live runtime status bar (API liveness + system-info, auto-refresh).
+  - JSON Parse workspace — paste any document or load a reproducible
+    ~1.5MB heavy preset, pick iterations, get ns-precision timings.
+  - Regex Match workspace — pattern + `g`/`i`/`m` flags over a large
+    buffer, with an "email scan" preset and a backtracking-stress preset
+    (classic catastrophic pattern that stays bounded on Bun's engine).
+  - Result panels with execution time (ms + ns), throughput (MB/s), item /
+    byte counts, heap + RSS memory deltas, GC-forced badge, engine info,
+    and an HTTP trace-header inspector (`x-bench-duration-ns`).
+  - Structured error banners (invalid JSON, invalid regex, regex timeout)
+    that never break the page.

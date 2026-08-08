@@ -27,7 +27,8 @@ runtime profile — so results are reproducible, not marketing claims.
 │   │   │   └── workers/        # regex-bench-worker (timeout-bounded regex)
 │   │   └── tests/              # bun:test smoke + benchmark integration tests
 │   └── dashboard/              # Frontend: Vite + React static dashboard
-│       ├── src/                # React app shell (placeholder)
+│       ├── src/                # React workspace (lib/ api client + presets,
+│       │                       # hooks/, components/, results panels)
 │       ├── vite.config.ts      # dev proxy /api -> :3000, allowedHosts
 │       └── vercel.json         # static deploy config for Vercel
 ├── packages/
@@ -53,8 +54,8 @@ runtime profile — so results are reproducible, not marketing claims.
      `x-bench-duration-ns` / `x-bench-heap-delta-bytes` headers.
   4. `express.json({ limit: MAX_BODY_MB })` — bounded body parsing so
      oversized payloads are rejected before allocation becomes a risk.
-  5. Routers — `/health` (liveness) and `/api/v1/benchmarks/*`
-     (`json_parse`, `regex_match`, `system-info`).
+  5. Routers — `/health` and `/api/health` (liveness, same handler) and
+     `/api/v1/benchmarks/*` (`json_parse`, `regex_match`, `system-info`).
   6. `notFoundHandler` + `errorHandler` — structured JSON 404/5xx,
      never crashes on malformed input.
 - **Precision timing**: `src/lib/timing.ts` wraps `Bun.nanoseconds()` for
@@ -65,6 +66,19 @@ runtime profile — so results are reproducible, not marketing claims.
 ### 2. Dashboard (`@bench/dashboard`)
 
 - **Stack**: Vite + React 19 + TypeScript, static build output.
+- **Workspace layout** (`src/`):
+  - `lib/api.ts` — API client. `fetch` wrapper that normalizes the
+    `ApiSuccessResponse` / `ApiErrorResponse` envelopes into typed results
+    or `ApiError`, and surfaces the `x-bench-duration-ns` /
+    `x-bench-heap-delta-bytes` trace headers.
+  - `lib/presets.ts` — deterministic (fixed-seed PRNG) payload builders:
+    a ~1.5MB nested JSON document and a ~200KB email-peppered log, plus a
+    catastrophic-backtracking regex preset for exercising the timeout path.
+  - `hooks/useBenchmark.ts` — run lifecycle (idle → running → success/error)
+    shared by both benchmark tabs.
+  - `components/` — live `RuntimeStatus` bar (liveness + system-info,
+    auto-refresh), `Tabs`, per-benchmark `JsonParseTab` / `RegexMatchTab`,
+    and `results/` metric cards, result panel, and header inspector.
 - **Dev proxy**: `vite.config.ts` forwards `/api/*` to
   `http://localhost:3000`, so local development is same-origin.
 - **Deployment**: built to `dist/` and served by Vercel
@@ -73,6 +87,9 @@ runtime profile — so results are reproducible, not marketing claims.
 - **API base URL**: `import.meta.env.VITE_API_BASE_URL` (defaults to
   `/api`). Locally the proxy handles it; in production it points at the
   deployed backend URL.
+- **CORS**: the API exposes `x-bench-duration-ns` /
+  `x-bench-heap-delta-bytes` via `cors({ exposedHeaders })` so the header
+  inspector works cross-origin in production, not just through the dev proxy.
 
 ### 3. Shared contracts (`@bench/shared`)
 
