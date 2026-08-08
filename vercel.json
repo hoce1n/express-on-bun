@@ -1,3 +1,20 @@
 {
-  "bunVersion": "1.x"
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "bunVersion": "1.x",
+  "builds": [
+    {
+      "src": "apps/dashboard/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "outputDirectory": "dist",
+        "routePrefix": "/"
+      }
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ]
 }

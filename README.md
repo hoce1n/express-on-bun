@@ -102,14 +102,19 @@ bun run build
 
 ### Dashboard → Vercel
 
-1. Create a Vercel project from the repository (or `cd apps/dashboard && vercel deploy`).
-2. Framework preset: **Vite**.
-3. Build command: `bun run build` (declared in `apps/dashboard/vercel.json`).
-4. Output directory: `dist` (declared in `apps/dashboard/vercel.json`).
+1. Create a Vercel project from the repository root. The root `vercel.json`
+   declares a `builds` entry that points at `apps/dashboard/package.json`,
+   so the dashboard is built from `apps/dashboard` with the static output
+   served from `apps/dashboard/dist` — no manual Root Directory / build
+   settings required.
+2. Framework preset: **Vite** (auto-detected for the dashboard workspace).
+3. Build command: `bun run build` (the `build` script in
+   `apps/dashboard/package.json`).
+4. Output directory: `dist` (resolved to `apps/dashboard/dist`).
 5. Set the environment variable `VITE_API_BASE_URL` to your deployed API
    URL (leave unset/`/api` only when the API is on the same origin). It is
    baked in at build time.
-6. `apps/dashboard/vercel.json` also includes an SPA fallback rewrite so
+6. The root `vercel.json` also includes an SPA fallback rewrite so
    client-side routes never 404 while `/api/*` requests pass through.
 
 ### API → Docker

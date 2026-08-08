@@ -21,7 +21,5 @@ dist
 .idea
 *.log
 
-# Legacy template artifacts (not part of the container image)
-components
-public
-vercel.json
+# Dashboard source (deployed separately to Vercel, not part of the container image)
+apps/dashboard

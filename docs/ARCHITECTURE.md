@@ -35,6 +35,7 @@ runtime profile — so results are reproducible, not marketing claims.
 │   └── shared/                 # Shared API contracts (@bench/shared)
 ├── Dockerfile                  # Multi-stage oven/bun:1 image for the API
 ├── docker-compose.yml          # Local backend orchestration
+├── vercel.json                 # Vercel monorepo config: builds apps/dashboard
 └── tsconfig.base.json          # Shared strict TS compiler options
 ```
 
@@ -185,10 +186,11 @@ Patterns are also pre-compiled on the main thread so invalid regexes return
   `docker run -p 3000:3000 bun-bench/api`, or `docker compose up --build`.
   The image uses the official `oven/bun:1` base and runs as the non-root
   `bun` user with a Docker `HEALTHCHECK` against `/health`.
-- **Dashboard (Vercel)**: import `apps/dashboard` as the root directory of
-  a Vercel project (or use the root with project settings pointing at
-  `apps/dashboard`). `vercel.json` sets the build command, output dir, and
-  SPA rewrite. Set `VITE_API_BASE_URL` to the deployed API URL.
+- **Dashboard (Vercel)**: the root `vercel.json` declares a `builds` entry
+  whose `src` points at `apps/dashboard/package.json`, so Vercel builds the
+  dashboard from `apps/dashboard` and serves the static output from
+  `apps/dashboard/dist`. The `rewrites` block adds the SPA fallback. Set
+  `VITE_API_BASE_URL` to the deployed API URL.
 
 ## Development
 
@@ -200,7 +202,3 @@ bun run typecheck      # tsc --noEmit for every workspace
 bun run test           # bun:test across workspaces
 bun run build          # bundle API (dist/) + build dashboard (dist/)
 ```
-
-> Note: the root-level `src/`, `public/`, `components/`, and `vercel.json`
-> are leftover artifacts of the original Vercel express-bun template and
-> are intentionally kept untouched. They are not part of the platform.
