@@ -20,16 +20,24 @@ export function createApp(): Express {
 
   // Security & robustness foundations.
   app.use(helmet());
-  app.use(cors());
+  app.use(
+    cors({
+      // Expose benchmark trace headers to cross-origin clients (dashboard),
+      // where they power the HTTP headers metric inspector.
+      exposedHeaders: ['x-bench-duration-ns', 'x-bench-heap-delta-bytes'],
+    }),
+  );
   app.use(metricsMiddleware());
 
   // Bounded JSON bodies: MAX_BODY_MB caps payload size so a hostile or
   // mistaken request cannot exhaust memory before it is handled.
   app.use(express.json({ limit: `${env.MAX_BODY_MB}mb` }));
 
-  // Routes. Benchmarks are mounted early; business logic is implemented
-  // under src/routes/benchmarks.ts in a later milestone.
+  // Routes.
+  // Liveness: exposed on both /health (Docker HEALTHCHECK, orchestrators) and
+  // /api/health (same origin as the dashboard's API base URL).
   app.use('/health', healthRouter);
+  app.use('/api/health', healthRouter);
   app.use('/api/v1/benchmarks', benchmarksRouter);
 
   // 404 + centralized error handling (must be registered last).
