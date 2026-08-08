@@ -1,0 +1,27 @@
+# Version control
+.git
+.gitignore
+
+# Dependencies
+node_modules
+
+# Build output
+dist
+*.tsbuildinfo
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Local tooling / misc
+.git
+.DS_Store
+.vscode
+.idea
+*.log
+
+# Legacy template artifacts (not part of the container image)
+components
+public
+vercel.json

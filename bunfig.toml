@@ -1,0 +1,7 @@
+[install]
+# Use the lockfile exactly as committed for reproducible builds.
+frozenLockfile = true
+
+[test]
+# Stop at the first failing test when running `bun test` at the workspace root.
+bail = true

@@ -1,12 +1,29 @@
 {
-  "name": "express",
+  "name": "bun-bench-platform",
+  "version": "0.1.0",
+  "private": true,
   "type": "module",
-  "dependencies": {
-    "express": "5.1.0"
+  "description": "Open, transparent benchmarking platform measuring real-world performance on the Bun runtime.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run dev:api",
+    "dev:api": "bun run --filter @bench/api dev",
+    "dev:dashboard": "bun run --filter @bench/dashboard dev",
+    "build": "bun run build:api && bun run build:dashboard",
+    "build:api": "bun run --filter @bench/api build",
+    "build:dashboard": "bun run --filter @bench/dashboard build",
+    "start": "bun run --filter @bench/api start",
+    "typecheck": "bun run typecheck:shared && bun run typecheck:api && bun run typecheck:dashboard",
+    "typecheck:api": "bun run --filter @bench/api typecheck",
+    "typecheck:dashboard": "bun run --filter @bench/dashboard typecheck",
+    "typecheck:shared": "bun run --filter @bench/shared typecheck",
+    "test": "bun test"
   },
-  "devDependencies": {
-    "@types/express": "5.0.0",
-    "@types/bun": "1.3.1",
-    "typescript": "5.8.3"
-  }
+  "engines": {
+    "bun": ">=1.1.0"
+  },
+  "packageManager": "bun@1.3.14"
 }
