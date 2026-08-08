@@ -1,3 +1,12 @@
 {
-  "bunVersion": "1.x"
+  "bunVersion": "1.x",
+  "framework": "vite",
+  "buildCommand": "bun --cwd apps/dashboard run build",
+  "outputDirectory": "apps/dashboard/dist",
+  "rewrites": [
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ]
 }
