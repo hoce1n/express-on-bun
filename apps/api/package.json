@@ -1,0 +1,28 @@
+{
+  "name": "@bench/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Bun + Express backend API for the Bun Benchmark Platform.",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun build ./src/index.ts --target bun --outdir ./dist",
+    "start": "bun run dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@bench/shared": "workspace:*",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "typescript": "^5.8.0"
+  }
+}

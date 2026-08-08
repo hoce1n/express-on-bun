@@ -1,0 +1,20 @@
+# Local orchestration for the backend API. The dashboard is a static build
+# served by Vercel; in local development it is served by Vite with a proxy.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: bun-bench/api:latest
+    container_name: bun-bench-api
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      LOG_LEVEL: info
+      # Bounded, but generous for stress-test payloads.
+      MAX_BODY_MB: 20
+      TRUST_PROXY: loopback
+    restart: unless-stopped
