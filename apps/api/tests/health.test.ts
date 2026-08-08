@@ -1,35 +1,24 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { createApp } from '../src/app';
 import { env } from '../src/config/env';
-
-const MAX_BODY_MB = env.MAX_BODY_MB;
+import { startTestServer, type TestServer } from './helpers/test-server';
 
 /**
  * Smoke test: boots the real app on an ephemeral port and verifies the
- * health endpoint and the JSON error envelope for unknown routes.
+ * health endpoint and the JSON error envelopes for bad input.
  */
 describe('api smoke test', () => {
-  const app = createApp();
-  let server: ReturnType<typeof app.listen>;
-  let baseUrl: string;
+  let server: TestServer;
 
   beforeAll(async () => {
-    server = app.listen(0, '127.0.0.1');
-    await new Promise<void>((resolve) => server.once('listening', resolve));
-    const address = server.address();
-    if (typeof address === 'object' && address !== null) {
-      baseUrl = `http://127.0.0.1:${address.port}`;
-    } else {
-      throw new Error('unable to determine test server address');
-    }
+    server = await startTestServer();
   });
 
   afterAll(async () => {
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await server.close();
   });
 
   test('GET /health returns 200 ok', async () => {
-    const res = await fetch(`${baseUrl}/health`);
+    const res = await fetch(`${server.baseUrl}/health`);
     expect(res.status).toBe(200);
     const body = (await res.json()) as { status: string };
     expect(body.status).toBe('ok');
@@ -37,14 +26,15 @@ describe('api smoke test', () => {
   });
 
   test('unknown route returns structured 404', async () => {
-    const res = await fetch(`${baseUrl}/nope`);
+    const res = await fetch(`${server.baseUrl}/nope`);
     expect(res.status).toBe(404);
-    const body = (await res.json()) as { error: { message: string } };
+    const body = (await res.json()) as { error: { message: string; code: string } };
     expect(body.error.message).toBe('Not found');
+    expect(body.error.code).toBe('NOT_FOUND');
   });
 
   test('malformed JSON body returns 400 without crashing', async () => {
-    const res = await fetch(`${baseUrl}/api/v1/benchmarks/json-parse`, {
+    const res = await fetch(`${server.baseUrl}/api/v1/benchmarks/json-parse`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: '{not json',
@@ -53,12 +43,14 @@ describe('api smoke test', () => {
   });
 
   test('oversized JSON body returns 413, not 500', async () => {
-    const bigPayload = JSON.stringify({ x: 'a'.repeat(MAX_BODY_MB * 1024 * 1024) });
-    const res = await fetch(`${baseUrl}/api/v1/benchmarks/json-parse`, {
+    const bigPayload = JSON.stringify({ x: 'a'.repeat(env.MAX_BODY_MB * 1024 * 1024) });
+    const res = await fetch(`${server.baseUrl}/api/v1/benchmarks/json-parse`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: bigPayload,
     });
     expect(res.status).toBe(413);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe('PAYLOAD_TOO_LARGE');
   });
 });

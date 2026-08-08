@@ -91,5 +91,13 @@ Copy `.env.example` to `.env` for local development. Key settings:
 
 - Foundation complete: workspace monorepo, API boot + `/health`,
   dashboard shell, Docker image, shared contracts.
-- In progress: benchmark business logic (`json-parse`, `regex-match`,
-  `system-info`) under `apps/api/src/routes/benchmarks.ts`.
+- Core benchmarking engine live:
+  - `POST /api/v1/benchmarks/json-parse` — multi-MB JSON parsing measured
+    with `Bun.nanoseconds()`, GC-forced baseline, memory before/after/delta,
+    item count and throughput (MB/s).
+  - `POST /api/v1/benchmarks/regex-match` — regex over large text buffers,
+    executed in a timeout-bounded worker so catastrophic patterns cannot
+    freeze the server.
+  - `GET /api/v1/benchmarks/system-info` — runtime context for result
+    normalization.
+- Next: dashboard wiring (benchmark runner + result charts).

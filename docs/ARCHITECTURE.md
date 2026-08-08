@@ -20,10 +20,12 @@ runtime profile — so results are reproducible, not marketing claims.
 │   │   │   ├── index.ts        # Entrypoint: listen + graceful shutdown
 │   │   │   ├── app.ts          # Express app factory (middleware + routes)
 │   │   │   ├── config/env.ts   # Zod-validated runtime configuration
-│   │   │   ├── lib/            # timing.ts (Bun.nanoseconds), memory.ts
+│   │   │   ├── lib/            # timing (Bun.nanoseconds/GC), memory,
+│   │   │   │                   # regex worker protocol + runner
 │   │   │   ├── middleware/     # metrics, error-handler, not-found
-│   │   │   └── routes/         # health, benchmarks (stub)
-│   │   └── tests/              # bun:test smoke tests
+│   │   │   ├── routes/         # health, benchmarks (json_parse, regex_match)
+│   │   │   └── workers/        # regex-bench-worker (timeout-bounded regex)
+│   │   └── tests/              # bun:test smoke + benchmark integration tests
 │   └── dashboard/              # Frontend: Vite + React static dashboard
 │       ├── src/                # React app shell (placeholder)
 │       ├── vite.config.ts      # dev proxy /api -> :3000, allowedHosts
@@ -51,7 +53,8 @@ runtime profile — so results are reproducible, not marketing claims.
      `x-bench-duration-ns` / `x-bench-heap-delta-bytes` headers.
   4. `express.json({ limit: MAX_BODY_MB })` — bounded body parsing so
      oversized payloads are rejected before allocation becomes a risk.
-  5. Routers — `/health` (liveness) and `/api/v1/benchmarks/*` (stub).
+  5. Routers — `/health` (liveness) and `/api/v1/benchmarks/*`
+     (`json_parse`, `regex_match`, `system-info`).
   6. `notFoundHandler` + `errorHandler` — structured JSON 404/5xx,
      never crashes on malformed input.
 - **Precision timing**: `src/lib/timing.ts` wraps `Bun.nanoseconds()` for
@@ -109,19 +112,55 @@ No build step — workspace source is imported directly.
 - **Both** consume `@bench/shared` types, keeping the wire contract in
   sync without drift.
 
-## Planned API contract (not yet implemented)
+## API contract
 
-Mounted under `/api/v1/benchmarks`, implemented in `src/routes/benchmarks.ts`:
+Mounted under `/api/v1/benchmarks` (`src/routes/benchmarks.ts`):
 
 | Endpoint                | Method | Purpose                                        |
 | ----------------------- | ------ | ---------------------------------------------- |
-| `/api/v1/benchmarks/json-parse` | POST | Multi-MB JSON stringify/parse stress test      |
-| `/api/v1/benchmarks/regex-match` | POST | Complex regex over a large text buffer         |
+| `/api/v1/benchmarks/json-parse` | POST | Parse multi-MB JSON documents, measure ns + throughput |
+| `/api/v1/benchmarks/regex-match` | POST | Run regex over a large text buffer (worker + timeout)  |
 | `/api/v1/benchmarks/system-info` | GET  | RuntimeSnapshot for result normalization       |
 
-Handlers validate input with zod against `@bench/shared`, measure with
-`Bun.nanoseconds()`, snapshot memory before/after, and return a
-`BenchmarkResult` envelope. The `/health` liveness endpoint is live today.
+Every benchmark returns an `ApiSuccessResponse<BenchmarkResult>` envelope;
+failures return a structured `{ error: { code, ... } }` envelope with stable
+codes (`INVALID_PAYLOAD`, `MALFORMED_JSON`, `INVALID_REGEX`, `REGEX_TIMEOUT`,
+`PAYLOAD_TOO_LARGE`, `NOT_FOUND`, `INTERNAL_ERROR`). The metrics middleware
+attaches `x-bench-duration-ns` to every response for transparent HTTP
+tracing.
+
+### Benchmark engine semantics
+
+- **Precision timing**: the timed section is measured with
+  `Bun.nanoseconds()` and reported as `executionTimeNs` /
+  `executionTimeMs`. For `regex_match`, timing happens *inside* the worker so
+  message-passing overhead is excluded.
+- **GC discipline**: `Bun.gc(true)` is forced before each run for a clean
+  heap baseline; `gcForced` is reported so warm-vs-cold runs are
+  distinguishable.
+- **Memory**: `process.memoryUsage()` snapshots are captured before and
+  after the timed section and reported as `before` / `after` / `delta`.
+  For `regex_match` the snapshots are taken inside the worker, where the
+  execution memory actually lives.
+- **Throughput**: `throughputMBps = bytesProcessed / 1e6 / seconds`, where
+  `bytesProcessed` uses UTF-8 byte length of the input across iterations.
+
+### Regex safety
+
+Catastrophic backtracking cannot be detected statically and blocks the
+executing thread synchronously. `regex_match` therefore runs in a dedicated
+`Worker` (`src/workers/regex-bench-worker.ts`) that the runner
+(`src/lib/regex-worker-runner.ts`) terminates after `REGEX_TIMEOUT_MS`,
+rejecting the request with `REGEX_TIMEOUT` instead of freezing the server.
+Patterns are also pre-compiled on the main thread so invalid regexes return
+`INVALID_REGEX` without a worker round-trip.
+
+### Input guards
+
+- Bounded JSON bodies via `MAX_BODY_MB` (`express.json` limit).
+- `BENCH_MAX_ITERATIONS` caps per-request iterations.
+- `BENCH_MAX_TEXT_CHARS` caps the regex source-text buffer.
+- A match counter (`MAX_MATCHES_PER_PASS`) bounds worst-case match passes.
 
 ## Deployment
 

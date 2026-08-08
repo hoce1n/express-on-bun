@@ -1,7 +1,6 @@
+import type { ApiErrorCode } from '@bench/shared';
 import type { NextFunction, Request, Response } from 'express';
 import { env } from '../config/env';
-import { getMemoryStats } from '../lib/memory';
-import { nsToMs } from '../lib/timing';
 
 /**
  * Error with an explicit HTTP status, thrown by application code.
@@ -12,6 +11,7 @@ export class HttpError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    public readonly code: ApiErrorCode = 'INTERNAL_ERROR',
     public readonly details?: unknown,
   ) {
     super(message);
@@ -22,7 +22,7 @@ export class HttpError extends Error {
 /** Response helper for request validation failures (400). */
 export class ValidationError extends HttpError {
   constructor(message: string, details?: unknown) {
-    super(400, message, details);
+    super(400, message, 'INVALID_PAYLOAD', details);
     this.name = 'ValidationError';
   }
 }
@@ -49,6 +49,7 @@ export function errorHandler(
 
   res.status(status).json({
     error: {
+      code: err instanceof HttpError ? err.code : inferCode(status),
       message: isServerError ? 'Internal server error' : messageOf(err),
       details: err instanceof HttpError ? err.details : undefined,
       stack:
@@ -57,6 +58,22 @@ export function errorHandler(
           : undefined,
     },
   });
+}
+
+/** Map an inferred status to a stable error code. */
+function inferCode(status: number): ApiErrorCode {
+  switch (status) {
+    case 400:
+      return 'INVALID_PAYLOAD';
+    case 404:
+      return 'NOT_FOUND';
+    case 408:
+      return 'REGEX_TIMEOUT';
+    case 413:
+      return 'PAYLOAD_TOO_LARGE';
+    default:
+      return 'INTERNAL_ERROR';
+  }
 }
 
 function messageOf(err: unknown): string {
