@@ -83,11 +83,14 @@ runtime profile — so results are reproducible, not marketing claims.
 - **Dev proxy**: `vite.config.ts` forwards `/api/*` to
   `http://localhost:3000`, so local development is same-origin.
 - **Deployment**: built to `dist/` and served by Vercel
-  (`apps/dashboard/vercel.json`). SPA fallback rewrite routes non-`/api`
-  paths to `index.html`.
+  (`vercel.json`). An external-origin rewrite forwards `/api/:path*` to the
+  deployed backend, and an SPA fallback rewrite routes all other paths to
+  `index.html`.
 - **API base URL**: `import.meta.env.VITE_API_BASE_URL` (defaults to
-  `/api`). Locally the proxy handles it; in production it points at the
-  deployed backend URL.
+  `/api`). Locally the Vite proxy handles it. In production, either set
+  `VITE_API_BASE_URL` to the deployed backend URL (baked in at build time),
+  or leave it as `/api` and let the Vercel `/api/*` rewrite proxy to the
+  backend service.
 - **CORS**: the API exposes `x-bench-duration-ns` /
   `x-bench-heap-delta-bytes` via `cors({ exposedHeaders })` so the header
   inspector works cross-origin in production, not just through the dev proxy.
@@ -124,9 +127,10 @@ No build step — workspace source is imported directly.
 
 - **Local dev**: browser → Vite dev server (`:5173`) → proxy `/api` →
   Bun API (`:3000`). One origin, zero CORS configuration.
-- **Production**: browser → Vercel static dashboard. `/api/*` is rewritten
-  to the deployed backend URL (`VITE_API_BASE_URL` baked at build time).
-  The API runs as a Docker container on any container host.
+- **Production**: browser → Vercel static dashboard. Either `VITE_API_BASE_URL`
+  points the dashboard at the deployed backend URL directly, or (when unset)
+  the Vercel `/api/*` rewrite proxies to the backend service. The API runs
+  as a Docker container on any container host.
 - **Both** consume `@bench/shared` types, keeping the wire contract in
   sync without drift.
 

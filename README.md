@@ -111,11 +111,18 @@ bun run build
 3. Build command: `bun run build` (the `build` script in
    `apps/dashboard/package.json`).
 4. Output directory: `dist` (resolved to `apps/dashboard/dist`).
-5. Set the environment variable `VITE_API_BASE_URL` to your deployed API
-   URL (leave unset/`/api` only when the API is on the same origin). It is
-   baked in at build time.
-6. The root `vercel.json` also includes an SPA fallback rewrite so
-   client-side routes never 404 while `/api/*` requests pass through.
+5. Backend routing (pick one):
+   - **Recommended**: set the environment variable `VITE_API_BASE_URL` to your
+     deployed API URL (e.g. `https://api.bunmark.example.com`). It is baked
+     into the bundle at build time and the dashboard calls the backend
+     directly (CORS is enabled on the API).
+   - **Or leave `VITE_API_BASE_URL` unset (defaults to `/api`)**: the root
+     `vercel.json` `rewrites` forward `/api/:path*` to the deployed backend
+     URL (`https://api.bunmark.example.com/api/:path*`) so the dashboard and
+     API share one origin. Replace that placeholder with your real backend
+     URL in both the root `vercel.json` and `apps/dashboard/vercel.json`.
+6. The `vercel.json` files also include an SPA fallback rewrite so
+   client-side routes never 404, while `/api/*` requests pass through.
 
 ### API → Docker
 
